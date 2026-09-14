@@ -123,15 +123,6 @@
   @keyframes breathe{0%,100%{opacity:.32}50%{opacity:.82}}
   body.entered .hint{opacity:0;pointer-events:none;animation:none}
 
-  .cue{
-    position:absolute;bottom:26px;left:50%;transform:translateX(-50%);
-    font-family:var(--mono);font-size:.62rem;letter-spacing:.4em;text-transform:uppercase;
-    color:var(--muted);opacity:0;transition:opacity .5s .9s ease;
-    display:flex;flex-direction:column;align-items:center;gap:8px;
-  }
-  body.entered .cue{opacity:1}
-  .cue span{width:1px;height:26px;background:linear-gradient(var(--amber),transparent)}
-
   #content{
     position:relative;z-index:10;
     background:linear-gradient(var(--ink),var(--ink) 40%,var(--ink-2));
@@ -142,7 +133,7 @@
   body.entered #content{opacity:1;transform:none}
 
   .wrap{max-width:760px;margin:0 auto;padding:0 clamp(22px,6vw,40px)}
-  section.block{padding-block:clamp(72px,12vh,128px);border-bottom:1px solid var(--line)}
+  section.block{padding-block:clamp(72px,12vh,128px);border-bottom:1px solid var(--line);scroll-margin-top:76px}
 
   .eyebrow{
     font-family:var(--mono);font-size:.68rem;letter-spacing:.34em;text-transform:uppercase;
@@ -219,7 +210,6 @@
   <section id="splash">
     <button id="mark" aria-label="Enter site">MAABLAB</button>
     <p class="hint">click to enter</p>
-    <div class="cue" aria-hidden="true">scroll<span></span></div>
   </section>
 
   <div id="content">
@@ -238,10 +228,6 @@
           <article class="card">
             <div class="top"><h3>Bough</h3><span class="status">In beta</span></div>
             <p>A family keepsake app. Digitize your family's memorabilia and tie every piece to the people in a living family tree, then share it privately within the family.</p>
-          </article>
-          <article class="card">
-            <div class="top"><h3>Untitled</h3><span class="status soon">In development</span></div>
-            <p>A new project in early development. More to share soon.</p>
           </article>
         </div>
       </section>
@@ -334,6 +320,9 @@
     running=false;
     if(raf)cancelAnimationFrame(raf);
     document.documentElement.style.overflow='auto';
+    var about=document.getElementById('about');
+    if(reduce){about.scrollIntoView();return;}
+    setTimeout(function(){about.scrollIntoView({behavior:'smooth',block:'start'});},650);
   }
   document.getElementById('splash').addEventListener('click',enter);
   document.getElementById('mark').addEventListener('keydown',function(e){
