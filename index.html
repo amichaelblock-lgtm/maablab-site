@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAABLAB</title>
+<meta name="description" content="MAABLAB is an independent software studio.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@500;700;800&display=swap">
+<style>
+  :root{
+    --ink:#0a0908;
+    --ink-2:#14110d;
+    --text:#fff8ee;
+    --muted:#9a9086;
+    --amber:#ffb020;
+    --amber-hot:#ff8f1f;
+    --line:rgba(255,176,32,.14);
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --body:"Archivo",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{overflow:hidden}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--text);
+    font-family:var(--body);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.6;
+    min-height:100svh;
+  }
+  img{max-width:100%}
+  a{color:inherit}
+
+  body::before{
+    content:"";
+    position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:radial-gradient(120% 90% at 50% 42%,rgba(255,143,31,.06),transparent 60%);
+  }
+
+  #fx{position:fixed;inset:0;z-index:0;display:block}
+
+  #nav{
+    position:fixed;top:0;left:0;right:0;z-index:20;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px clamp(20px,5vw,56px);
+    pointer-events:none;
+  }
+  #nav.on{pointer-events:auto}
+  #nav::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+    background:var(--line);opacity:0;transition:opacity .6s .55s ease;
+  }
+  body.entered #nav::after{opacity:1}
+
+  .nav-item{
+    font-family:var(--mono);
+    text-decoration:none;
+    transform:translateY(-150%);
+    opacity:0;
+    transition:transform .6s cubic-bezier(.16,.9,.2,1),opacity .45s ease;
+    transition-delay:calc(var(--i) * 110ms);
+  }
+  body.entered .nav-item{transform:translateY(0);opacity:1}
+
+  .brand{
+    font-weight:800;letter-spacing:.26em;font-size:.92rem;
+    color:var(--text);
+  }
+  .brand b{color:var(--amber);font-weight:800}
+  .links{display:flex;gap:clamp(18px,3vw,40px);align-items:center;transform:none}
+  .links a{
+    font-weight:500;letter-spacing:.22em;text-transform:uppercase;font-size:.72rem;
+    color:var(--muted);text-decoration:none;
+    padding:6px 2px;transition:color .25s ease;position:relative;
+  }
+  .links a::after{
+    content:"";position:absolute;left:0;right:100%;bottom:-2px;height:1px;
+    background:var(--amber);transition:right .3s ease;
+  }
+  .links a:hover,.links a:focus-visible{color:var(--text);outline:none}
+  .links a:hover::after,.links a:focus-visible::after{right:0}
+
+  #splash{
+    position:relative;z-index:10;
+    min-height:100svh;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:26px;padding:24px;cursor:pointer;
+  }
+  #mark{
+    appearance:none;background:none;border:0;padding:0;margin:0;cursor:pointer;
+    font-family:var(--mono);font-weight:800;
+    font-size:clamp(2.6rem,13vw,9.5rem);
+    letter-spacing:.06em;
+    color:var(--text);
+    text-shadow:
+      0 0 7px rgba(255,176,32,.55),
+      0 0 22px rgba(255,143,31,.42),
+      0 0 58px rgba(255,143,31,.28);
+    animation:pulse 3.6s ease-in-out infinite;
+    transition:transform .85s cubic-bezier(.16,.9,.2,1),text-shadow .85s ease;
+    will-change:transform;
+  }
+  #mark:focus-visible{outline:2px solid var(--amber);outline-offset:12px;border-radius:6px}
+  @keyframes pulse{
+    0%,100%{text-shadow:0 0 7px rgba(255,176,32,.5),0 0 22px rgba(255,143,31,.38),0 0 54px rgba(255,143,31,.24)}
+    50%{text-shadow:0 0 11px rgba(255,176,32,.72),0 0 34px rgba(255,143,31,.55),0 0 92px rgba(255,143,31,.4)}
+  }
+  body.entered #mark{
+    animation:none;
+    transform:scale(.6);
+    text-shadow:0 0 6px rgba(255,176,32,.4),0 0 20px rgba(255,143,31,.28);
+  }
+
+  .hint{
+    font-family:var(--mono);font-size:.7rem;letter-spacing:.42em;text-transform:uppercase;
+    color:var(--amber);opacity:.72;margin:0;
+    animation:breathe 2.6s ease-in-out infinite;
+    transition:opacity .4s ease;
+  }
+  @keyframes breathe{0%,100%{opacity:.32}50%{opacity:.82}}
+  body.entered .hint{opacity:0;pointer-events:none;animation:none}
+
+  .cue{
+    position:absolute;bottom:26px;left:50%;transform:translateX(-50%);
+    font-family:var(--mono);font-size:.62rem;letter-spacing:.4em;text-transform:uppercase;
+    color:var(--muted);opacity:0;transition:opacity .5s .9s ease;
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+  }
+  body.entered .cue{opacity:1}
+  .cue span{width:1px;height:26px;background:linear-gradient(var(--amber),transparent)}
+
+  #content{
+    position:relative;z-index:10;
+    background:linear-gradient(var(--ink),var(--ink) 40%,var(--ink-2));
+    border-top:1px solid var(--line);
+    opacity:0;transform:translateY(14px);
+    transition:opacity .8s .25s ease,transform .8s .25s cubic-bezier(.16,.9,.2,1);
+  }
+  body.entered #content{opacity:1;transform:none}
+
+  .wrap{max-width:760px;margin:0 auto;padding:0 clamp(22px,6vw,40px)}
+  section.block{padding-block:clamp(72px,12vh,128px);border-bottom:1px solid var(--line)}
+
+  .eyebrow{
+    font-family:var(--mono);font-size:.68rem;letter-spacing:.34em;text-transform:uppercase;
+    color:var(--amber);margin:0 0 22px;
+  }
+  h2{
+    font-family:var(--mono);font-weight:700;font-size:clamp(1.5rem,4vw,2.15rem);
+    letter-spacing:.02em;margin:0 0 20px;text-wrap:balance;
+  }
+  .lede{font-size:clamp(1.08rem,2.4vw,1.32rem);color:var(--text);max-width:60ch;margin:0}
+  p{color:var(--muted);max-width:62ch}
+  #about p+p{margin-top:1.1em}
+
+  .work{display:grid;gap:18px;margin-top:8px}
+  .card{
+    border:1px solid var(--line);border-radius:12px;
+    padding:26px 26px 24px;
+    background:linear-gradient(180deg,rgba(255,176,32,.03),transparent);
+    transition:border-color .3s ease,transform .3s ease;
+  }
+  .card:hover{border-color:rgba(255,176,32,.32);transform:translateY(-2px)}
+  .card .top{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .card h3{font-family:var(--mono);font-weight:700;font-size:1.14rem;margin:0;letter-spacing:.02em}
+  .status{
+    font-family:var(--mono);font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;
+    color:var(--amber);border:1px solid var(--line);border-radius:999px;padding:4px 11px;white-space:nowrap;
+  }
+  .status.soon{color:var(--muted)}
+  .card p{margin:12px 0 0;color:var(--muted);font-size:.98rem}
+
+  .mailto{
+    display:inline-block;margin-top:6px;
+    font-family:var(--mono);font-weight:700;text-decoration:none;
+    font-size:clamp(1.3rem,5vw,2.3rem);letter-spacing:.01em;color:var(--text);
+    transition:color .25s ease,text-shadow .25s ease;
+  }
+  .mailto:hover,.mailto:focus-visible{
+    color:var(--amber);outline:none;
+    text-shadow:0 0 22px rgba(255,143,31,.4);
+  }
+
+  footer{padding:40px 0 56px}
+  footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+  footer p{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;color:var(--muted);margin:0}
+
+  @media (max-width:520px){
+    .links{gap:16px}
+    .links a{font-size:.66rem;letter-spacing:.14em}
+    .brand{font-size:.78rem;letter-spacing:.2em}
+  }
+  @media (prefers-reduced-motion:reduce){
+    #mark{animation:none}
+    .hint{animation:none;opacity:.7}
+    .nav-item{transition:opacity .35s ease;transform:none}
+    #content,body.entered #mark{transition:opacity .35s ease}
+    body.entered #mark{transform:scale(.6)}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<header id="nav">
+  <a class="nav-item brand" href="#" style="--i:0">MAAB<b>LAB</b></a>
+  <nav class="links">
+    <a class="nav-item" href="#work" style="--i:1">Work</a>
+    <a class="nav-item" href="#about" style="--i:2">About</a>
+    <a class="nav-item" href="#contact" style="--i:3">Contact</a>
+  </nav>
+</header>
+
+<main>
+  <section id="splash">
+    <button id="mark" aria-label="Enter site">MAABLAB</button>
+    <p class="hint">click to enter</p>
+    <div class="cue" aria-hidden="true">scroll<span></span></div>
+  </section>
+
+  <div id="content">
+    <div class="wrap">
+      <section class="block" id="about">
+        <p class="eyebrow">About</p>
+        <h2>An independent software studio.</h2>
+        <p class="lede">I design and build software end to end, from the first sketch to the shipped app.</p>
+        <p>Small by intention. One person means one point of view carried through the whole product, so the details that usually get lost stay looked after. I work across mobile and web, and I keep the things that matter close: careful interfaces, honest data handling, and software that respects the people using it.</p>
+      </section>
+
+      <section class="block" id="work">
+        <p class="eyebrow">Work</p>
+        <h2>What I'm building.</h2>
+        <div class="work">
+          <article class="card">
+            <div class="top"><h3>Bough</h3><span class="status">In beta</span></div>
+            <p>A family keepsake app. Digitize your family's memorabilia and tie every piece to the people in a living family tree, then share it privately within the family.</p>
+          </article>
+          <article class="card">
+            <div class="top"><h3>Untitled</h3><span class="status soon">In development</span></div>
+            <p>A new project in early development. More to share soon.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="block" id="contact">
+        <p class="eyebrow">Contact</p>
+        <h2>Get in touch.</h2>
+        <a class="mailto" href="mailto:hello@maablab.com">hello@maablab.com</a>
+      </section>
+    </div>
+
+    <footer>
+      <div class="wrap">
+        <p>&copy; 2026 MAABLAB LLC</p>
+        <p>Built in the dark.</p>
+      </div>
+    </footer>
+  </div>
+</main>
+
+<script>
+(function(){
+  var canvas=document.getElementById('fx');
+  var ctx=canvas.getContext('2d');
+  var W=0,H=0,dpr=1;
+  function resize(){
+    dpr=Math.min(window.devicePixelRatio||1,2);
+    W=window.innerWidth;H=window.innerHeight;
+    canvas.width=W*dpr;canvas.height=H*dpr;
+    canvas.style.width=W+'px';canvas.style.height=H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  resize();
+  window.addEventListener('resize',resize);
+
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var mouse={x:W/2,y:H/2,active:false};
+  var AMBIENT=reduce?34:82;
+  var ambient=[];
+  for(var i=0;i<AMBIENT;i++){
+    ambient.push({
+      x:Math.random()*W,y:Math.random()*H,
+      vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,
+      r:Math.random()*1.6+.5,base:Math.random()*.35+.12
+    });
+  }
+  var tail=[];
+  var running=true,raf=0;
+
+  function spawnTail(x,y){
+    if(reduce)return;
+    for(var i=0;i<2;i++){
+      tail.push({x:x,y:y,vx:(Math.random()-.5)*.8,vy:(Math.random()-.5)*.8+.15,r:Math.random()*2.4+1.1,life:1});
+    }
+    if(tail.length>150)tail.splice(0,tail.length-150);
+  }
+  function move(x,y){mouse.x=x;mouse.y=y;mouse.active=true;spawnTail(x,y);}
+  window.addEventListener('mousemove',function(e){if(running)move(e.clientX,e.clientY);});
+  window.addEventListener('touchmove',function(e){if(running&&e.touches[0])move(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+
+  function frame(){
+    if(!running)return;
+    ctx.clearRect(0,0,W,H);
+    ctx.globalCompositeOperation='lighter';
+    var p,i;
+    for(i=0;i<ambient.length;i++){
+      p=ambient[i];
+      if(mouse.active){
+        var dx=mouse.x-p.x,dy=mouse.y-p.y,d2=dx*dx+dy*dy;
+        if(d2<40000){var d=Math.sqrt(d2)||1;var f=(1-d/200)*.045;p.vx+=dx/d*f;p.vy+=dy/d*f;}
+      }
+      p.x+=p.vx;p.y+=p.vy;p.vx*=.99;p.vy*=.99;
+      if(p.x<-12)p.x=W+12;if(p.x>W+12)p.x=-12;if(p.y<-12)p.y=H+12;if(p.y>H+12)p.y=-12;
+      ctx.beginPath();ctx.fillStyle='rgba(255,176,32,'+p.base+')';ctx.arc(p.x,p.y,p.r,0,6.29);ctx.fill();
+    }
+    for(i=tail.length-1;i>=0;i--){
+      var t=tail[i];t.x+=t.vx;t.y+=t.vy;t.vy+=.01;t.life-=.026;
+      if(t.life<=0){tail.splice(i,1);continue;}
+      ctx.beginPath();ctx.fillStyle='rgba(255,150,30,'+(t.life*.6)+')';ctx.arc(t.x,t.y,t.r*t.life+.4,0,6.29);ctx.fill();
+    }
+    ctx.globalCompositeOperation='source-over';
+    raf=requestAnimationFrame(frame);
+  }
+  raf=requestAnimationFrame(frame);
+
+  function enter(){
+    if(document.body.classList.contains('entered'))return;
+    document.body.classList.add('entered');
+    document.getElementById('nav').classList.add('on');
+    running=false;
+    if(raf)cancelAnimationFrame(raf);
+    document.documentElement.style.overflow='auto';
+  }
+  document.getElementById('splash').addEventListener('click',enter);
+  document.getElementById('mark').addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();enter();}
+  });
+})();
+</script>
+</body>
+</html>
