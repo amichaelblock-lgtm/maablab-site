@@ -279,7 +279,7 @@
 
   var mouse={x:W/2,y:H/2,active:false};
   var ambient=[];
-  var counterEl=null,won=false,winTimer=0,lastLoose=-1;
+  var counterEl=null,numEl=null,won=false,winTimer=0,lastLoose=-1;
 
   function generateField(){
     ambient=[];
@@ -294,7 +294,7 @@
     }
     won=false;
     lastLoose=-1;
-    if(counterEl)counterEl.textContent=String(n);
+    if(numEl)numEl.textContent=String(n);
   }
 
   function startConfetti(){
@@ -332,13 +332,16 @@
       '#game-reset{pointer-events:auto;appearance:none;background:rgba(20,17,13,.55);border:1px solid var(--line);border-radius:999px;padding:7px;display:inline-flex;line-height:0;cursor:pointer;transition:border-color .25s ease,transform .2s ease}'+
       '#game-reset:hover,#game-reset:focus-visible{border-color:rgba(255,176,32,.5);outline:none;transform:rotate(-35deg)}'+
       '#game-count{font-family:var(--display);font-size:.72rem;letter-spacing:.14em;color:var(--amber);display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}'+
-      '#game-count::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px rgba(255,143,31,.7)}';
+      '#game-count::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px rgba(255,143,31,.7)}'+
+      '#game-count-num{display:inline-block;width:3ch;text-align:right;white-space:nowrap}';
     document.head.appendChild(st);
 
     var ui=document.createElement('div');ui.id='game-ui';
     var rbtn=document.createElement('button');rbtn.id='game-reset';rbtn.type='button';rbtn.setAttribute('aria-label','New dot field');
     rbtn.innerHTML='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#ffb020" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>';
     counterEl=document.createElement('span');counterEl.id='game-count';counterEl.setAttribute('aria-live','off');
+    numEl=document.createElement('span');numEl.id='game-count-num';
+    counterEl.appendChild(numEl);
     ui.appendChild(rbtn);ui.appendChild(counterEl);
     document.body.appendChild(ui);
 
@@ -418,7 +421,7 @@
     ctx.globalCompositeOperation='source-over';
 
     if(game){
-      if(loose!==lastLoose){if(counterEl)counterEl.textContent=String(loose);lastLoose=loose;}
+      if(loose!==lastLoose){if(numEl)numEl.textContent=String(loose);lastLoose=loose;}
       if(loose===0&&ambient.length>0&&!won){
         won=true;startConfetti();
         winTimer=setTimeout(function(){winTimer=0;generateField();},GAME.confettiMs);
