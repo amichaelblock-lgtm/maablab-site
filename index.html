@@ -288,7 +288,7 @@
       ambient.push({
         x:Math.random()*W,y:Math.random()*H,
         vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,
-        r:Math.random()*1.6+.5,base:Math.random()*.35+.12,
+        r:Math.random()*1.6+.9,base:Math.random()*.35+.20,
         captured:false,follow:0
       });
     }
@@ -326,7 +326,9 @@
 
     var st=document.createElement('style');
     st.textContent=
-      '#game-ui{position:fixed;right:clamp(16px,4vw,32px);bottom:clamp(16px,4vw,28px);z-index:15;display:flex;align-items:center;gap:10px;pointer-events:none}'+
+      '#game-ui{position:fixed;right:clamp(16px,4vw,32px);bottom:clamp(16px,4vw,28px);z-index:15;display:flex;align-items:center;gap:10px;opacity:1;transition:opacity .3s ease;pointer-events:none}'+
+      '#game-ui.hidden{opacity:0;pointer-events:none}'+
+      '#game-ui.hidden #game-reset{pointer-events:none}'+
       '#game-reset{pointer-events:auto;appearance:none;background:rgba(20,17,13,.55);border:1px solid var(--line);border-radius:999px;padding:7px;display:inline-flex;line-height:0;cursor:pointer;transition:border-color .25s ease,transform .2s ease}'+
       '#game-reset:hover,#game-reset:focus-visible{border-color:rgba(255,176,32,.5);outline:none;transform:rotate(-35deg)}'+
       '#game-count{font-family:var(--display);font-size:.72rem;letter-spacing:.14em;color:var(--amber);display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}'+
@@ -339,6 +341,16 @@
     counterEl=document.createElement('span');counterEl.id='game-count';counterEl.setAttribute('aria-live','off');
     ui.appendChild(rbtn);ui.appendChild(counterEl);
     document.body.appendChild(ui);
+
+    // Scroll-gate: #game-ui is visible only while #splash is (near-)fully in view.
+    var splashEl=document.getElementById('splash');
+    if(splashEl&&'IntersectionObserver' in window){
+      var gameUIObserver=new IntersectionObserver(function(entries){
+        ui.classList.toggle('hidden',entries[0].intersectionRatio<0.95);
+      },{threshold:[0,0.95,1]});
+      gameUIObserver.observe(splashEl);
+    }
+
     rbtn.addEventListener('click',function(e){
       e.preventDefault();e.stopPropagation();
       if(winTimer){clearTimeout(winTimer);winTimer=0;}
