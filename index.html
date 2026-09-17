@@ -251,6 +251,8 @@
 
 <script>
 (function(){
+  if('scrollRestoration' in history){try{history.scrollRestoration='manual';}catch(e){}}
+  window.scrollTo(0,0);
   var canvas=document.getElementById('fx');
   var ctx=canvas.getContext('2d');
   var W=0,H=0,dpr=1;
@@ -263,6 +265,7 @@
   }
   resize();
   window.addEventListener('resize',resize);
+  window.addEventListener('pageshow',function(){if(!document.body.classList.contains('entered'))window.scrollTo(0,0);});
 
   var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var mouse={x:W/2,y:H/2,active:false};
