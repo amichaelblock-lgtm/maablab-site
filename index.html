@@ -246,14 +246,14 @@
 
   // Dot-collection mini-game tunables — tweak the feel here.
   var GAME={
-    minDots:50,        // fewest ambient dots in a freshly generated field
+    minDots:80,        // fewest ambient dots in a freshly generated field
     maxDots:110,       // most ambient dots in a freshly generated field
     pullRadius:200,    // px: a loose dot inside this range accelerates toward the cursor
     pullForce:0.05,    // pull acceleration scale (ramped up the closer the dot is)
     captureRadius:26,  // px: a loose dot this close to the cursor becomes captured
-    orbitRadius:22,    // px: ring radius that captured dots settle onto around the cursor
-    orbitSpring:0.22,  // how hard a captured dot springs toward its ring point (0-1)
-    orbitSpin:0.06,    // radians/frame each captured dot advances around the cursor
+    followMin:0.012,   // weakest per-dot spring toward the cursor — the laggiest tail dots
+    followMax:0.055,   // strongest per-dot spring — the tightest dots, nearest the cursor
+    trailDamping:0.86, // per-frame velocity retention for captured dots — momentum that streams them into a comet tail
     releaseRadius:120, // px: a captured dot beyond this from the cursor breaks free again
     confettiMs:2000    // ms the win confetti falls before the field auto-resets
   };
@@ -289,7 +289,7 @@
         x:Math.random()*W,y:Math.random()*H,
         vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,
         r:Math.random()*1.6+.5,base:Math.random()*.35+.12,
-        captured:false,angle:Math.random()*6.283
+        captured:false,follow:0
       });
     }
     won=false;
@@ -372,18 +372,18 @@
     for(i=0;i<ambient.length;i++){
       p=ambient[i];
       if(game&&p.captured){
-        p.angle+=GAME.orbitSpin;
-        var tx=mouse.x+Math.cos(p.angle)*GAME.orbitRadius,ty=mouse.y+Math.sin(p.angle)*GAME.orbitRadius;
-        p.vx+=(tx-p.x)*GAME.orbitSpring;p.vy+=(ty-p.y)*GAME.orbitSpring;
-        p.vx*=.72;p.vy*=.72;
+        // Comet tail: accelerate toward the cursor with this dot's own follow strength,
+        // keep most of the velocity (momentum) so it overshoots and streams behind on the move.
+        p.vx+=(mouse.x-p.x)*p.follow;p.vy+=(mouse.y-p.y)*p.follow;
+        p.vx*=GAME.trailDamping;p.vy*=GAME.trailDamping;
         p.x+=p.vx;p.y+=p.vy;
         var rx=p.x-mouse.x,ry=p.y-mouse.y;
-        if(rx*rx+ry*ry>relR2)p.captured=false;
+        if(rx*rx+ry*ry>relR2)p.captured=false; // fell too far behind — breaks free
       }else{
         if(mouse.active){
           var dx=mouse.x-p.x,dy=mouse.y-p.y,d2=dx*dx+dy*dy;
           if(game&&d2<capR2){
-            p.captured=true;p.angle=Math.atan2(p.y-mouse.y,p.x-mouse.x);
+            p.captured=true;p.follow=GAME.followMin+Math.random()*(GAME.followMax-GAME.followMin);
           }else if(d2<pullR2){
             var d=Math.sqrt(d2)||1,f=(1-d/GAME.pullRadius)*GAME.pullForce;p.vx+=dx/d*f;p.vy+=dy/d*f;
           }
