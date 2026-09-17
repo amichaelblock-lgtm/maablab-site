@@ -92,28 +92,14 @@
   }
   #mark{
     appearance:none;background:none;border:0;padding:0;margin:0;cursor:pointer;
-    font-family:var(--display);
-    font-size:clamp(1.5rem,8.2vw,4.4rem);
-    letter-spacing:.03em;
-    color:var(--text);
-    text-shadow:
-      0 0 7px rgba(255,176,32,.55),
-      0 0 22px rgba(255,143,31,.42),
-      0 0 58px rgba(255,143,31,.28);
-    animation:pulse 3.6s ease-in-out infinite;
-    transition:transform .85s cubic-bezier(.16,.9,.2,1),text-shadow .85s ease;
+    font-size:0;line-height:0;
+    display:inline-block;
+    transition:transform .85s cubic-bezier(.16,.9,.2,1);
     will-change:transform;
   }
+  #mark canvas{display:block}
   #mark:focus-visible{outline:2px solid var(--amber);outline-offset:12px;border-radius:6px}
-  @keyframes pulse{
-    0%,100%{text-shadow:0 0 7px rgba(255,176,32,.5),0 0 22px rgba(255,143,31,.38),0 0 54px rgba(255,143,31,.24)}
-    50%{text-shadow:0 0 11px rgba(255,176,32,.72),0 0 34px rgba(255,143,31,.55),0 0 92px rgba(255,143,31,.4)}
-  }
-  body.entered #mark{
-    animation:none;
-    transform:scale(.62);
-    text-shadow:0 0 6px rgba(255,176,32,.4),0 0 20px rgba(255,143,31,.28);
-  }
+  body.entered #mark{transform:scale(.62)}
 
   .hint{
     font-family:var(--body);font-weight:600;font-size:.7rem;letter-spacing:.4em;text-transform:uppercase;
@@ -186,7 +172,6 @@
     .brand{font-size:.7rem;letter-spacing:.1em}
   }
   @media (prefers-reduced-motion:reduce){
-    #mark{animation:none}
     .hint{animation:none;opacity:.7}
     .nav-item{transition:opacity .35s ease;transform:none}
     #content,body.entered #mark{transition:opacity .35s ease}
@@ -209,7 +194,7 @@
 
 <main>
   <section id="splash">
-    <button id="mark" aria-label="Enter site">MAABLAB</button>
+    <button id="mark" aria-label="Enter site">MAABLAB<canvas aria-hidden="true"></canvas></button>
     <p class="hint">click to enter</p>
   </section>
 
@@ -331,6 +316,249 @@
   document.getElementById('mark').addEventListener('keydown',function(e){
     if(e.key==='Enter'||e.key===' '){e.preventDefault();enter();}
   });
+})();
+
+/* Splash mark: "MAABLAB" drawn as a hollow orange outline; cursor/touch contact
+   blooms an orange fill that flows ALONG the glyph shapes, then decays to bare outline. */
+(function(){
+  var btn=document.getElementById('mark');
+  if(!btn)return;
+  var cv=btn.querySelector('canvas');
+  if(!cv)return;
+  var g=cv.getContext('2d');
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Tunables — tweak the water-fill feel here.
+  var MARK={
+    spread:0.16,        // diffusion rate: fraction of (neighbor-avg - self) pulled in per frame
+    decay:0.985,        // per-frame wetness multiplier (a splash fully fades in ~3-4s at 60fps)
+    injectRadius:34,    // CSS-px radius of the splash around the pointer
+    injectAmount:0.5,   // wetness added per frame at the splash centre
+    cell:5,             // wet-field grid cell size in CSS px (coarseness)
+    outlineWidth:2,     // resting-outline stroke width in CSS px
+    glow:14             // outline glow (shadowBlur) in CSS px
+  };
+
+  var TEXT='MAABLAB';
+  var AMBER='#ffb020';          // --amber (outline)
+  var GLOW='rgba(255,143,31,.85)'; // --amber-hot glow
+  var FILL=[255,176,32];        // wet-fill colour (r,g,b), alpha from wetness
+
+  var dpr=1,fontPx=0,ls=0,padX=0,padY=0,baselineY=0,cssW=0,cssH=0;
+  var cols=0,rows=0,inside=null,wet=null,next=null;
+  var fillBuf=null,fillCtx=null;
+  var raf=0,stopped=false;
+  var ptr={x:-1e6,y:-1e6,active:false},lastMove=0;
+
+  function fontStr(px){return px+'px "Michroma", sans-serif';}
+
+  function measureAndSize(){
+    fontPx=Math.max(24,Math.min(0.082*window.innerWidth,70.4));
+    ls=0.03*fontPx;
+    g.font=fontStr(fontPx);
+    var textW=0,i;
+    for(i=0;i<TEXT.length;i++){textW+=g.measureText(TEXT.charAt(i)).width;if(i<TEXT.length-1)textW+=ls;}
+    var m=g.measureText(TEXT);
+    var asc=m.actualBoundingBoxAscent||fontPx*0.74;
+    var desc=m.actualBoundingBoxDescent||fontPx*0.06;
+    var pad=Math.ceil(MARK.glow*2+MARK.outlineWidth+fontPx*0.12);
+    padX=pad;padY=pad;
+    baselineY=padY+asc;
+    cssW=Math.max(1,Math.ceil(textW+padX*2));
+    cssH=Math.max(1,Math.ceil(asc+desc+padY*2));
+  }
+
+  function drawTextOn(c,mode){
+    c.font=fontStr(fontPx);
+    c.textBaseline='alphabetic';
+    c.textAlign='left';
+    var x=padX,i;
+    for(i=0;i<TEXT.length;i++){
+      var ch=TEXT.charAt(i);
+      if(mode==='stroke')c.strokeText(ch,x,baselineY);else c.fillText(ch,x,baselineY);
+      x+=c.measureText(ch).width+ls;
+    }
+  }
+
+  function buildMask(){
+    var mc=document.createElement('canvas');
+    mc.width=cssW;mc.height=cssH;
+    var mx=mc.getContext('2d');
+    mx.clearRect(0,0,cssW,cssH);
+    mx.fillStyle='#fff';
+    drawTextOn(mx,'fill');
+    var data=mx.getImageData(0,0,cssW,cssH).data;
+    cols=Math.max(1,Math.ceil(cssW/MARK.cell));
+    rows=Math.max(1,Math.ceil(cssH/MARK.cell));
+    inside=new Uint8Array(cols*rows);
+    for(var r=0;r<rows;r++)for(var c=0;c<cols;c++){
+      var px=Math.min(cssW-1,Math.floor(c*MARK.cell+MARK.cell/2));
+      var py=Math.min(cssH-1,Math.floor(r*MARK.cell+MARK.cell/2));
+      inside[r*cols+c]=data[(py*cssW+px)*4+3]>40?1:0;
+    }
+    wet=new Float32Array(cols*rows);
+    next=new Float32Array(cols*rows);
+  }
+
+  function sizeCanvas(){
+    dpr=Math.min(window.devicePixelRatio||1,2);
+    measureAndSize();
+    cv.width=Math.max(1,Math.round(cssW*dpr));
+    cv.height=Math.max(1,Math.round(cssH*dpr));
+    cv.style.width=cssW+'px';
+    cv.style.height=cssH+'px';
+    g.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function setup(){
+    sizeCanvas();
+    buildMask();
+    fillBuf=document.createElement('canvas');
+    fillBuf.width=cv.width;fillBuf.height=cv.height;
+    fillCtx=fillBuf.getContext('2d');
+    fillCtx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function inject(){
+    if(!ptr.active)return;
+    var rad=MARK.injectRadius,r2=rad*rad,half=MARK.cell/2;
+    var c0=Math.max(0,Math.floor((ptr.x-rad)/MARK.cell));
+    var c1=Math.min(cols-1,Math.floor((ptr.x+rad)/MARK.cell));
+    var r0=Math.max(0,Math.floor((ptr.y-rad)/MARK.cell));
+    var r1=Math.min(rows-1,Math.floor((ptr.y+rad)/MARK.cell));
+    for(var r=r0;r<=r1;r++)for(var c=c0;c<=c1;c++){
+      var idx=r*cols+c;
+      if(!inside[idx])continue;
+      var dx=(c*MARK.cell+half)-ptr.x,dy=(r*MARK.cell+half)-ptr.y,d2=dx*dx+dy*dy;
+      if(d2>r2)continue;
+      var falloff=1-Math.sqrt(d2)/rad;
+      var v=wet[idx]+MARK.injectAmount*falloff;
+      wet[idx]=v>1?1:v;
+    }
+  }
+
+  function diffuse(){
+    for(var r=0;r<rows;r++)for(var c=0;c<cols;c++){
+      var idx=r*cols+c;
+      if(!inside[idx]){next[idx]=0;continue;}
+      var sum=0,n=0;
+      if(c>0&&inside[idx-1]){sum+=wet[idx-1];n++;}
+      if(c<cols-1&&inside[idx+1]){sum+=wet[idx+1];n++;}
+      if(r>0&&inside[idx-cols]){sum+=wet[idx-cols];n++;}
+      if(r<rows-1&&inside[idx+cols]){sum+=wet[idx+cols];n++;}
+      var v=wet[idx];
+      if(n>0)v+=MARK.spread*(sum/n-v);
+      v*=MARK.decay;
+      next[idx]=v<0?0:(v>1?1:v);
+    }
+    var tmp=wet;wet=next;next=tmp;
+  }
+
+  function paintFill(){
+    fillCtx.clearRect(0,0,cssW,cssH);
+    fillCtx.globalCompositeOperation='source-over';
+    var rad=MARK.cell*1.7,half=MARK.cell/2;
+    for(var r=0;r<rows;r++)for(var c=0;c<cols;c++){
+      var idx=r*cols+c,w=wet[idx];
+      if(w<=0.02||!inside[idx])continue;
+      var cx=c*MARK.cell+half,cy=r*MARK.cell+half;
+      var grd=fillCtx.createRadialGradient(cx,cy,0,cx,cy,rad);
+      grd.addColorStop(0,'rgba('+FILL[0]+','+FILL[1]+','+FILL[2]+','+w+')');
+      grd.addColorStop(1,'rgba('+FILL[0]+','+FILL[1]+','+FILL[2]+',0)');
+      fillCtx.fillStyle=grd;
+      fillCtx.beginPath();fillCtx.arc(cx,cy,rad,0,6.29);fillCtx.fill();
+    }
+    // clip the wet field to the exact glyph shapes
+    fillCtx.globalCompositeOperation='destination-in';
+    fillCtx.fillStyle='#fff';
+    drawTextOn(fillCtx,'fill');
+    fillCtx.globalCompositeOperation='source-over';
+  }
+
+  function drawOutline(){
+    g.save();
+    g.strokeStyle=AMBER;
+    g.lineWidth=MARK.outlineWidth;
+    g.lineJoin='round';
+    g.shadowColor=GLOW;
+    g.shadowBlur=MARK.glow;
+    drawTextOn(g,'stroke');
+    g.restore();
+  }
+
+  function render(){
+    g.clearRect(0,0,cssW,cssH);
+    drawOutline();
+    if(fillBuf){
+      paintFill();
+      g.globalCompositeOperation='lighter';
+      g.drawImage(fillBuf,0,0,cssW,cssH);
+      g.globalCompositeOperation='source-over';
+    }
+  }
+
+  function renderResting(){
+    if(cssW<=0)return;
+    g.clearRect(0,0,cssW,cssH);
+    drawOutline();
+  }
+
+  function frame(){
+    if(stopped)return;
+    if(document.body.classList.contains('entered')){stop();return;}
+    if(ptr.active&&performance.now()-lastMove>100)ptr.active=false;
+    inject();
+    diffuse();
+    render();
+    raf=requestAnimationFrame(frame);
+  }
+
+  function stop(){
+    if(stopped)return;
+    stopped=true;
+    if(raf)cancelAnimationFrame(raf);
+    renderResting();
+  }
+
+  function onMove(x,y){
+    var rect=cv.getBoundingClientRect();
+    var sx=rect.width?cssW/rect.width:1,sy=rect.height?cssH/rect.height:1;
+    ptr.x=(x-rect.left)*sx;ptr.y=(y-rect.top)*sy;
+    ptr.active=true;lastMove=performance.now();
+  }
+
+  function bindPointer(){
+    window.addEventListener('mousemove',function(e){if(!stopped)onMove(e.clientX,e.clientY);});
+    window.addEventListener('touchmove',function(e){if(!stopped&&e.touches[0])onMove(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+    var end=function(){ptr.active=false;};
+    window.addEventListener('touchend',end);
+    window.addEventListener('touchcancel',end);
+    window.addEventListener('mouseleave',end);
+  }
+
+  var rt;
+  window.addEventListener('resize',function(){
+    clearTimeout(rt);
+    rt=setTimeout(function(){
+      if(document.body.classList.contains('entered'))return;
+      if(reduce){sizeCanvas();renderResting();return;}
+      setup();
+    },150);
+  });
+
+  function init(){
+    if(reduce){sizeCanvas();renderResting();return;}
+    setup();
+    bindPointer();
+    raf=requestAnimationFrame(frame);
+  }
+
+  function boot(){
+    if(document.fonts&&document.fonts.load){
+      document.fonts.load(fontStr(48)).then(function(){return document.fonts.ready;}).then(init,init);
+    }else{init();}
+  }
+  boot();
 })();
 </script>
 </body>
